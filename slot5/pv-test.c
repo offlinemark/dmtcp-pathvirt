@@ -11,7 +11,7 @@ int main(int argc, const char *argv[])
 {
     int count = 0;
     char *append = "appending";
-    char *fname = "/pvtest.txt";
+    char *fname = "/pv-test.txt";
     char cwd[128];
     if (!getcwd(cwd, sizeof cwd))
         err(1, "could not get cwd");
@@ -23,12 +23,14 @@ int main(int argc, const char *argv[])
     while (1) {
         printf("[%d] Appending...\n", count);
 
-        int fd = open(fullpath, O_RDWR | O_APPEND | O_CREAT, S_IRWXU);
+        int fd = open(fullpath, O_RDWR | O_APPEND, S_IRWXU);
+        printf("open ret: %d\n", fd);
         if (fd < 0) {
             err(1, "could not open/create file");
         } else {
             dprintf(fd, "%d %s\n", count++, append);
         }
+        close(fd);
 
         sleep(1);
     }
