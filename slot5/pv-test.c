@@ -9,10 +9,6 @@
 
 int main(int argc, const char *argv[])
 {
-    /* get cwd */
-    /* save to variable */
-    /* that variable is used all throughout */
-
     int count = 0;
     char *append = "appending";
     char *fname = "/pvtest.txt";
@@ -38,6 +34,5 @@ int main(int argc, const char *argv[])
     }
 
 
-    free(cwd);
     return 0;
 }
