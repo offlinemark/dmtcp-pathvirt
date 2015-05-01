@@ -6,7 +6,11 @@
 
 #include <stdio.h>
 #include <sys/time.h>
+#include <string.h>
 #include "dmtcp.h"
+
+const char* oldpath="slot5";
+const char* newpath="slot7";
 
 void print_time() {
   struct timeval val;
@@ -14,12 +18,23 @@ void print_time() {
   printf("%ld %ld", (long)val.tv_sec, (long)val.tv_usec);
 }
 
-unsigned int sleep(unsigned int seconds) {
-  printf("sleep1: "); print_time(); printf(" ... ");
-  unsigned int result = NEXT_FNC(sleep)(seconds);
-  print_time(); printf("\n");
+/* unsigned int sleep(unsigned int seconds) { */
+/*   printf("sleep1: "); print_time(); printf(" ... "); */
+/*   unsigned int result = NEXT_FNC(sleep)(seconds); */
+/*   print_time(); printf("\n"); */
 
-  return result;
+/*   return result; */
+/* } */
+
+int open(const char *path, int oflag, mode_t mode) {
+    printf("WRAPPED OPEN2!\n");
+    char *tmp;
+    if (tmp = strstr(path, oldpath)) {
+        puts("old path detected. swapping");
+        strncpy(tmp, newpath, strlen(newpath)); // intentionally don't copy null
+    } 
+    puts(path);
+    return NEXT_FNC(open)(path, oflag, mode);
 }
 
 void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
