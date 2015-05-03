@@ -11,7 +11,7 @@
 
 // always include trailing /
 const char* oldprefix="/home/markmoss/dmtcp/test/plugin/pathvirt/slot5/";
-const char* newprefix="/home/markmoss/dmtcp/test/plugin/pathvirt/slot7/";
+const char* newprefix="/home/markmoss/dmtcp/test/plugin/pathvirt/misc/slot7/";
 
 void print_time() {
   struct timeval val;
