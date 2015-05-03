@@ -26,7 +26,7 @@ int main(int argc, const char *argv[])
         int fd = open(fullpath, O_RDWR | O_APPEND, S_IRWXU);
         printf("open ret: %d\n", fd);
         if (fd < 0) {
-            err(1, "could not open/create file");
+            err(1, "could not open file");
         } else {
             dprintf(fd, "%d %s\n", count++, append);
         }
