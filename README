@@ -12,9 +12,9 @@ Hit Ctrl-C after the first DMTCP checkpoint.
 This builds the shared library, then builds the example user application, and
 finally runs the test.
 
-The shared library wraps the open syscall, checking if the path contains
-'slot5' and if so, replacing 'slot5' with 'slot7', and forwarding that
-to the real/next open syscall.
+The shared library wraps the open syscall, checking if the path begins with
+the "oldprefix" global if so, replacing it with the "newprefix" global
+and forwarding that to the real/next open syscall.
 
 The user application (pv-test.v) appends to a text file in the processes's
 default directory every second, using a global path saved into a local
@@ -22,9 +22,9 @@ variable.
 
 `make check` runs the user application in DMTCP, loading the shared library.
 After terminating the process, notice that slot5/pv-test.txt contains nothing
-while slot7/pv-test.txt is contains the output. This shows that the pathvirt
-module was able to redirect the applications path usage elsewhere on the
-filesystem.
+while misc/slot7/pv-test.txt contains the output. This shows that the
+pathvirt module was able to redirect the applications path usage elsewhere on
+the filesystem.
 
 Something strange that I don't understand occurs on DMTCP restart however.
 The process seems to be put in the background and requires `kill -9` to

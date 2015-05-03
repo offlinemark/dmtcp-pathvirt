@@ -7,4 +7,4 @@ check: pv-test
 clean:
 	rm -f pv-test ckpt* dmtcp*
 	echo > pv-test.txt
-	echo > ../slot7/pv-test.txt
+	echo > ../misc/slot7/pv-test.txt
