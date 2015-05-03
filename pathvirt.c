@@ -9,8 +9,9 @@
 #include <string.h>
 #include "dmtcp.h"
 
-const char* oldpath="slot5";
-const char* newpath="slot7";
+// always include trailing /
+const char* oldprefix="/home/markmoss/dmtcp/test/plugin/pathvirt/slot5/";
+const char* newprefix="/home/markmoss/dmtcp/test/plugin/pathvirt/slot7/";
 
 void print_time() {
   struct timeval val;
@@ -26,15 +27,24 @@ void print_time() {
 /*   return result; */
 /* } */
 
+static int startswith(const char *target, const char *prefix) {
+    // invert strncmp ret to return true if startswith and false else
+    return !strncmp(target, prefix, strlen(prefix));
+}
+
+
 int open(const char *path, int oflag, mode_t mode) {
     printf("WRAPPED OPEN2!\n");
-    char *tmp;
-    if (tmp = strstr(path, oldpath)) {
-        puts("old path detected. swapping");
-        strncpy(tmp, newpath, strlen(newpath)); // intentionally don't copy null
-    } 
-    puts(path);
-    return NEXT_FNC(open)(path, oflag, mode);
+    if (startswith(path, oldprefix)) {
+        puts("old path prefix detected. swapping");
+        size_t newpathsize = (strlen(path) - strlen(oldprefix)) + strlen(newprefix);
+        char newpath[newpathsize + 1];
+        snprintf(newpath, sizeof newpath, "%s%s", newprefix,
+                 path + strlen(oldprefix));
+        return NEXT_FNC(open)(newpath, oflag, mode);
+    } else {
+        return NEXT_FNC(open)(path, oflag, mode);
+    }
 }
 
 void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
