@@ -24,7 +24,6 @@ int main(int argc, const char *argv[])
         printf("[%d] Appending...\n", count);
 
         int fd = open(fullpath, O_RDWR | O_APPEND, S_IRWXU);
-        printf("open ret: %d\n", fd);
         if (fd < 0) {
             err(1, "could not open file");
         } else {
