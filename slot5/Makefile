@@ -4,10 +4,12 @@ pv-test: pv-test.c
 check: pv-test
 	DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/slot5/ \
 		dmtcp_launch -i3 --with-plugin ../dmtcp_pathvirthijack.so ./pv-test
+	# dmtcp_launch -i3 --with-plugin ../dmtcp_pathvirthijack.so ./pv-test
 
 restart:
-	DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7 \
+	DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/ \
 		./dmtcp_restart_script.sh
+	# ./dmtcp_restart_script.sh
 
 clean:
 	rm -f pv-test ckpt* dmtcp*
