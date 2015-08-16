@@ -1,5 +1,8 @@
 # Path Virtualization
 
+You may need to edit the Makefile within the slot5/ directory to correct
+the paths to the pathvirt directory.
+
 To run a basic test, run the following:
 
 make
@@ -8,6 +11,19 @@ make
 make check
 
 Hit Ctrl-C after the first DMTCP checkpoint.
+then run
+
+make restart
+
+You should observe that on launch, the slot5/pv-test.txt file was being
+written to, but after restart the misc/slot7/pv-test.txt was being written
+to.
+
+
+
+
+// old notes
+
 
 This builds the shared library, then builds the example user application, and
 finally runs the test.

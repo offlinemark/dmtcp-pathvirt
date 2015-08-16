@@ -33,9 +33,7 @@ int open(const char *path, int oflag, mode_t mode) {
         char newpath[newpathsize + 1];
         snprintf(newpath, sizeof newpath, "%s/%s", new_path_prefix,
                  path + strlen(old_path_prefix));
-        puts(newpath);
-        puts(old_path_prefix);
-        printf("%p\n", old_path_prefix);
+        /* puts(newpath); */
         return NEXT_FNC(open)(newpath, oflag, mode);
     } else {
         return NEXT_FNC(open)(path, oflag, mode);
@@ -74,6 +72,7 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
             /* env var did not exist. no new prefix given, so do nothing */
             break;
         } else if (ret == -2) {
+            // TODO
             /* need to allocate more memory and retry */
         }
 
