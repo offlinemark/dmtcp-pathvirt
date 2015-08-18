@@ -114,13 +114,11 @@ int fopen64(const char *path, const char *mode) {
 
     // found it in old list
     char *new = clget(new_path_prefix_list, index);
-    if (new == NULL) {
+    if (new == NULL)
         return NEXT_FNC(fopen64)(path, mode);
-    }
 
     // determine element length
-    char *colon = strchr(new, ':');
-    size_t element_sz = colon ? colon - new : strlen(new);
+    size_t element_sz = clgetsize(new_path_prefix_list, index);
 
     char newcpy[element_sz + 1];
     memcpy(newcpy, new, element_sz);
