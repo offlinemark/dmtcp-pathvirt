@@ -21,11 +21,6 @@ static int should_swap;
 static char old_path_prefix_list[1024];
 static char new_path_prefix_list[1024];
 
-/* static int startswith(const char *target, const char *prefix) { */
-/*     // invert strncmp ret to return true if startswith and false else */
-/*     return !strncmp(target, prefix, strlen(prefix)); */
-/* } */
-
 
 /*
  * clfind - returns first index in colonlist which is a prefix for path
@@ -48,7 +43,6 @@ static int clfind(char *colonlist, const char *path)
 
         /* bump index count */
         index++;
-
     }
 
     // process the last element in the list
