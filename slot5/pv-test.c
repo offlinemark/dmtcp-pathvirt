@@ -16,6 +16,8 @@ int main(int argc, const char *argv[])
     if (!getcwd(cwd, sizeof cwd))
         err(1, "could not get cwd");
 
+    char last_digit = *(cwd + strlen(cwd) - 1);
+
     size_t fullpathsize = strlen(cwd) + strlen(fname) + 1;
     char fullpath[fullpathsize];
     snprintf(fullpath, sizeof(fullpath), "%s%s", cwd, fname);
