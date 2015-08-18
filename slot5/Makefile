@@ -10,8 +10,9 @@ check:
 	# dmtcp_launch -i3 --with-plugin ../dmtcp_pathvirthijack.so ./pv-test
 
 restart:
-	# DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/bin7:$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/doc7:$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/lib7 
-	DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/ \
+	DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/bin7:$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/doc7:$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/lib7 \
+		./dmtcp_restart_script.sh
+	# DMTCP_PATH_PREFIX=$(HOME)/dmtcp/test/plugin/pathvirt/misc/slot7/ \
 		./dmtcp_restart_script.sh
 	# ./dmtcp_restart_script.sh
 
