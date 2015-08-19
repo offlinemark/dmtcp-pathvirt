@@ -17,10 +17,13 @@
 static int should_swap;
 
 // NOTE: DMTCP_PATH_PREFIX env variables cannot exceed 1024 characters in length
-// TODO
+// TODO: dynamically allocate
 static char old_path_prefix_list[1024];
 static char new_path_prefix_list[1024];
 
+/*
+ * Helper Functions
+ */
 
 /*
  * clfind - returns first index in colonlist which is a prefix for path
@@ -30,7 +33,7 @@ static int clfind(char *colonlist, const char *path)
     int index = 0;
     char *element = colonlist, *colon;
 
-    // while there is a colon present, loop
+    /* while there is a colon present, loop */
     while (colon = strchr(element, ':')) {
         /* check if element is a prefix of path. here, colon - element is
            an easy way to calculate the length of the element in the list
@@ -45,11 +48,11 @@ static int clfind(char *colonlist, const char *path)
         index++;
     }
 
-    // process the last element in the list
+    /* process the last element in the list */
     if (strncmp(path, element, strlen(element)) == 0)
         return index;
 
-    // not found
+    /* not found */
     return -1;
 }
 
@@ -64,8 +67,11 @@ char *clget(char *colonlist, unsigned int i)
 
     /* iterate through elements until last one */
     while (colon = strchr(element, ':')) {
+        /* if we are at the request index, return pointer to start of element */
         if (curr_ind == i)
             return element;
+
+        /* otherwise, advance pointer to next element and bump current index */
         element = colon + 1;
         curr_ind++;
     }
@@ -84,110 +90,120 @@ char *clget(char *colonlist, unsigned int i)
  */
 static ssize_t clgetsize(char *colonlist, const unsigned int i)
 {
+    /* get pointer to element at index i */
     char *element = clget(colonlist, i);
     if (element) {
+        /* element was found. now either calculate the element's length, or call
+         * strlen if element was last one */
         char *colon = strchr(element, ':');
         return colon ? colon - element : strlen(element);
     }
+
+    /* not found */
     return -1;
 }
 
-int fopen64(const char *path, const char *mode) {
-
-    puts(path);
+/*
+ * dynamic_path_swap - given old path, return new path or NULL
+ *
+ * Returns NULL if no swap is to be done and the original path value should
+ * be used. Returns a malloc'd pointer to the new string if a swap should
+ * happen.
+ *
+ * If didn't return NULL, the returned pointer must be freed.
+ */
+static char *dynamic_path_swap(const char *path) 
+{
+    /* quickly return NULL if no swap */
     if (!should_swap) {
-        puts("not swapping");
-        return NEXT_FNC(fopen64)(path, mode);
+        return NULL;
     }
-    puts("swapping");
 
-    // should swap
+    /* yes, should swap */
+
+    /* check if path is in list of registered paths to swap out */
     int index = clfind(old_path_prefix_list, path);
     if (index == -1)
-        return NEXT_FNC(fopen64)(path,mode);
+        return NULL;
 
-    // found it in old list
+    /* found it in old list, now get a pointer to the new prefix to swap in*/
     char *new = clget(new_path_prefix_list, index);
     if (new == NULL)
-        return NEXT_FNC(fopen64)(path, mode);
+        return NULL;
 
-    // determine element length
+    /* get its length */
+
+/* TODO: this call is wasteful because clgetsize has to iterate through the list */
+/*           rather than just calculating the length. refactor api to include */
+/*           clgetsize_from_pointer function that lets you pass in a pointer and */
+/*           all that needs to be done there is the strchr or strlen the reason */
+/*           the clgetsize function takes in an index rather than a pointer is */
+/*           because it makes it easier below when need to get the length of the */
+/*           old prefix but we never actually have a pointer to it */
     size_t element_sz = clgetsize(new_path_prefix_list, index);
 
+    /* copy out of colonlist into our own buffer */
     char newcpy[element_sz + 1];
     memcpy(newcpy, new, element_sz);
     newcpy[element_sz] = '\0';
-    puts(newcpy);
 
-    // found corresponding new version
+    /* finally, create full path with the new prefix swapped in */
 
     /* plus 1 is for safety slash we include between the new prefix and the
        unchanged rest of the path. this is in case their environment
        variable doesn't end with a slash. in the "worst" case,
        there will be two extra slashes if the new prefix ends with a slash
-       and the old one doesn't */
-    size_t newpathsize = (strlen(path) - clgetsize(old_path_prefix_list, index)) + strlen(newcpy) + 1;
-    char newpath[newpathsize + 1];
-    snprintf(newpath, sizeof newpath, "%s/%s", newcpy,
+       and the old one doesn't. plus 1 for NULL */
+    size_t newpathsize = (strlen(path) - clgetsize(old_path_prefix_list,
+                                                   index)) + strlen(newcpy) + 1 + 1;
+    char *newpath = malloc(newpathsize);
+    snprintf(newpath, newpathsize, "%s/%s", newcpy,
              path + clgetsize(old_path_prefix_list, index));
-    puts(newpath);
-    return NEXT_FNC(fopen64)(newpath, mode);
 
+    return newpath;
 }
-int open(const char *path, int oflag, mode_t mode) {
 
-    puts(path);
-    if (!should_swap) {
-        puts("not swapping");
-        return NEXT_FNC(open)(path, oflag, mode);
-    }
-    puts("swapping");
-    // should swap
-    int index = clfind(old_path_prefix_list, path);
-    if (index == -1)
-        return NEXT_FNC(open)(path, oflag, mode);
-    puts("1");
+/*
+ * Libc Hooks (for all path related functions)
+ */
 
-    // found it in old list
-    char *new = clget(new_path_prefix_list, index);
-    if (new == NULL) {
-        return NEXT_FNC(open)(path, oflag, mode);
-    }
+int fopen64(const char *path, const char *mode)
+{
+    char *hook_path = dynamic_path_swap(path);
 
-    // determine element length
-    char *colon = strchr(new, ':');
-    size_t element_sz = colon ? colon - new : strlen(new);
+    /* hook_path was NULL, not swapping */
+    if (!hook_path)
+        return NEXT_FNC(fopen64)(path, mode);
 
-    char newcpy[element_sz + 1];
-    memcpy(newcpy, new, element_sz);
-    newcpy[element_sz - 1] = '\0';
+    /* swapping */
+    int fd = NEXT_FNC(fopen64)(hook_path, mode);
 
-    // found corresponding new version
+    /* dynamic_path_swap's return val needs to be free'd */
+    free(hook_path);
 
-    // plus 1 is for safety slash we include between new_path_prefix_list a
-    size_t newpathsize = (strlen(path) - strlen(old_path_prefix_list)) + strlen(newcpy) + 1;
-    char newpath[newpathsize + 1];
-    snprintf(newpath, sizeof newpath, "%s/%s", newcpy,
-             path + strlen(old_path_prefix_list));
-    /* puts(newpath); */
-    puts("2");
-    return NEXT_FNC(open)(newpath, oflag, mode);
-
-
-#if 0
-    if (should_swap && startswith(path, old_path_prefix_list)) {
-        // plus 1 is for safety slash we include between new_path_prefix_list a
-        size_t newpathsize = (strlen(path) - strlen(old_path_prefix_list)) + strlen(new_path_prefix_list) + 1;
-        char newpath[newpathsize + 1];
-        snprintf(newpath, sizeof newpath, "%s/%s", new_path_prefix_list,
-                 path + strlen(old_path_prefix_list));
-        /* puts(newpath); */
-        return NEXT_FNC(open)(newpath, oflag, mode);
-    } else {
-        return NEXT_FNC(open)(path, oflag, mode);
-    }
-#endif
+    return fd;
 }
+
+int open(const char *path, int oflag, mode_t mode)
+{
+    char *hook_path = dynamic_path_swap(path);
+
+    /* hook_path was NULL, not swapping */
+    if (!hook_path)
+        return NEXT_FNC(open)(path, oflag, mode);
+
+    /* swapping */
+    int fd = NEXT_FNC(open)(hook_path, oflag, mode);
+
+    /* dynamic_path_swap's return val needs to be free'd */
+    free(hook_path);
+
+    return fd;
+}
+
+/*
+ * DMTCP Setup
+ */
 
 void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
 {
@@ -200,8 +216,8 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
         char *old_env = getenv(ENV_DPP);
         if (old_env) {
             /* if so, save it to buffer */
-            strncpy(old_path_prefix_list, old_env, sizeof old_path_prefix_list);
-            old_path_prefix_list[strlen(old_env)] = 0;
+            snprintf(old_path_prefix_list, sizeof(old_path_prefix_list), "%s",
+                     old_env);
         }
 
         break;
@@ -216,7 +232,6 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
          * passed in on restart */
         int ret = dmtcp_get_restart_env(ENV_DPP, new_path_prefix_list,
                                         sizeof(new_path_prefix_list) - 1);
-        printf("%d\n", ret);
         if (ret == -1) {
             /* env var did not exist. no new prefix given, so do nothing */
             break;
@@ -231,9 +246,7 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
         if (*old_path_prefix_list)
             should_swap = 1;
 
-        /* else */
-        /*     puts("no old path given!"); */
-
+        /* if we get here, no old path was given, so do nothing */
         break;
     }
 
