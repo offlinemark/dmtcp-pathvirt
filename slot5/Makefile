@@ -24,7 +24,6 @@ clean:
 	> ../misc/slot7/bin7/pv-test.txt
 	> ../misc/slot7/doc7/pv-test.txt
 	> ../misc/slot7/lib7/pv-test.txt
-	> pv-test.txt
 	> bin5/pv-test.txt
 	> doc5/pv-test.txt
 	> lib5/pv-test.txt
