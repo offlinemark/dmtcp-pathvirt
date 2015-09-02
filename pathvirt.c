@@ -85,18 +85,28 @@ char *clget(char *colonlist, unsigned int i)
 }
 
 /*
+ * clgetsize_ptr - returns size of an element pointed to by @element in the
+ *                 list
+ */
+static size_t clgetsize_ptr(char *colonlist, char *element)
+{
+    /* either calculate the element's length, or call
+     * strlen if element was last one */
+    char *colon = strchr(element, ':');
+    return colon ? colon - element : strlen(element);
+}
+
+/*
  * clgetsize - returns size of an element at index i in colonlist
  *             and -1 if not found
  */
-static ssize_t clgetsize(char *colonlist, const unsigned int i)
+static ssize_t clgetsize_ind(char *colonlist, const unsigned int i)
 {
     /* get pointer to element at index i */
     char *element = clget(colonlist, i);
     if (element) {
-        /* element was found. now either calculate the element's length, or call
-         * strlen if element was last one */
-        char *colon = strchr(element, ':');
-        return colon ? colon - element : strlen(element);
+        /* now that we have a pointer, we can use clgetsize_ptr */
+        return clgetsize_ptr(colonlist, element);
     }
 
     /* not found */
@@ -131,21 +141,14 @@ static char *dynamic_path_swap(const char *path)
     if (new == NULL)
         return NULL;
 
-    /* get its length */
+    /* get lengths of old and new prefixes */
+    size_t new_element_sz = clgetsize_ptr(new_path_prefix_list, new);
+    size_t old_element_sz = clgetsize_ind(old_path_prefix_list, index);
 
-/* TODO: this call is wasteful because clgetsize has to iterate through the list */
-/*           rather than just calculating the length. refactor api to include */
-/*           clgetsize_from_pointer function that lets you pass in a pointer and */
-/*           all that needs to be done there is the strchr or strlen the reason */
-/*           the clgetsize function takes in an index rather than a pointer is */
-/*           because it makes it easier below when need to get the length of the */
-/*           old prefix but we never actually have a pointer to it */
-    size_t element_sz = clgetsize(new_path_prefix_list, index);
-
-    /* copy out of colonlist into our own buffer */
-    char newcpy[element_sz + 1];
-    memcpy(newcpy, new, element_sz);
-    newcpy[element_sz] = '\0';
+    /* copy new prefix out of new colonlist into our own buffer */
+    char newcpy[new_element_sz + 1];
+    memcpy(newcpy, new, new_element_sz);
+    newcpy[new_element_sz] = '\0';
 
     /* finally, create full path with the new prefix swapped in */
 
@@ -154,11 +157,9 @@ static char *dynamic_path_swap(const char *path)
        variable doesn't end with a slash. in the "worst" case,
        there will be two extra slashes if the new prefix ends with a slash
        and the old one doesn't. plus 1 for NULL */
-    size_t newpathsize = (strlen(path) - clgetsize(old_path_prefix_list,
-                                                   index)) + strlen(newcpy) + 1 + 1;
+    size_t newpathsize = (strlen(path) - old_element_sz) + strlen(newcpy) + 1 + 1;
     char *newpath = malloc(newpathsize);
-    snprintf(newpath, newpathsize, "%s/%s", newcpy,
-             path + clgetsize(old_path_prefix_list, index));
+    snprintf(newpath, newpathsize, "%s/%s", newcpy, path + old_element_sz);
 
     return newpath;
 }
