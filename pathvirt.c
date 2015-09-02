@@ -16,10 +16,14 @@
 /* is set on restart */
 static int should_swap;
 
-// NOTE: DMTCP_PATH_PREFIX env variables cannot exceed 1024 characters in length
-// TODO: dynamically allocate
-static char old_path_prefix_list[1024];
-static char new_path_prefix_list[1024];
+// TODO when to free?
+/* will point to dynamically allocated buffers to store the user provided */
+/* environment variables in */
+static char *old_path_prefix_list;
+static char *new_path_prefix_list;
+
+/* keep track of how big the buffers are for when we need to realloc */
+static size_t prefix_list_sz = 1024;
 
 /*
  * Helper Functions
@@ -216,8 +220,10 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
            DMTCP_PATH_PREFIX env */
         char *old_env = getenv(ENV_DPP);
         if (old_env) {
-            /* if so, save it to buffer */
-            snprintf(old_path_prefix_list, sizeof(old_path_prefix_list), "%s",
+            /* if so, alloc buffers and save those paths there */
+            old_path_prefix_list = malloc(prefix_list_sz);
+            new_path_prefix_list = malloc(prefix_list_sz);
+            snprintf(old_path_prefix_list, prefix_list_sz, "%s",
                      old_env);
         }
 
@@ -227,24 +233,40 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
     {
         /* necessary since we don't know how many bytes dmtcp_get_restart_env
            will write */
-        memset(new_path_prefix_list, 0, sizeof new_path_prefix_list);
+        memset(new_path_prefix_list, 0, prefix_list_sz);
 
         /* Try to get the value of ENV_DPP from new environment variables,
          * passed in on restart */
         int ret = dmtcp_get_restart_env(ENV_DPP, new_path_prefix_list,
-                                        sizeof(new_path_prefix_list) - 1);
+                                        prefix_list_sz - 1);
+
         if (ret == -1) {
             /* env var did not exist. no new prefix given, so do nothing */
             break;
         } else if (ret == -2) {
-            // TODO
             /* need to allocate more memory and retry */
+
+            /* double prefix_list_sz */
+            /* realloc buffers */
+            /* if there was an error, oh well, we can't bubble it up. maybe */
+            /*     jassert */
+            /*
+             * while loop or something. we will only get back a max of 3k
+             * bytes so if we go over, then it can't fail because it will
+             * try to copy as much as we said we could hold, but will end up
+             * stopping earlier because it only has room for 3k so even if we
+             * say we had a 4k buffer, it can only give us 3k, so that's what
+             * it will give us. there won't be an infinite, because as soon
+             * as prefix_list_sz exceeds 3k, it can't fail with -2
+             *
+             * while (ret == -2)
+             *
+             */
         }
 
-        /* check if an initial DMTCP_PATH_PREFIX was even supplied
-         * (old_path_prefix is initialized to zeros on start, and would only
-         * contain something if something had been written there */
-        if (*old_path_prefix_list)
+        /* check if an initial DMTCP_PATH_PREFIX was even supplied by checking */
+        /* if old_path_prefix_list is NULL */
+        if (old_path_prefix_list)
             should_swap = 1;
 
         /* if we get here, no old path was given, so do nothing */
