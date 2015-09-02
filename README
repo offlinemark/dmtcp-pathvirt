@@ -38,7 +38,7 @@ being written to.
 
 ## constraints
 
-- due to a current limitation of dmtcp_get_restart_env, the maximum length of
+- due to a current limitation of dmtcp_get_restart_env(), the maximum length of
   the colon lists that can be provided via the DMTCP_PATH_PREFIX variable
   is 2982 bytes. This is because the maximum size of the name=value
   string is 3000 bytes and "DMTCP_PATH_PREFIX=" occupies 18 of those.
