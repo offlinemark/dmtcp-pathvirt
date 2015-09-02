@@ -1,4 +1,8 @@
-# Path Virtualization
+# Path Virtualization DMTCP Plugin
+
+by Mark Mossberg
+
+## testing
 
 You may need to edit the PATHVIRT variable in the Makefile within the slot5/
 directory to correct the paths to the pathvirt directory.
@@ -21,10 +25,10 @@ being written to.
 
 - pathvirt.c is a DMTCP plugin that allows colon delimited path lists to be
   registered with it via the DMTCP_PATH_PREFIX environment variable
-- the plugin records the a list of paths that should be swapped out in the
+- the plugin records the list of paths that should be swapped out in the
   future into an internal buffer on launch
 - on restart, a new colon list of path prefixes are given, and the plugin's
-  libc hooks become active (currently openly implemented for open and fopen64).
+  libc hooks become active (currently only implemented for open and fopen64).
   Any attempt to call a libc function on a previously registered path will
   result in a new path being created with the old path prefix replaced by the
   newly given one and the call forwarded on.
