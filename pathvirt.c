@@ -22,8 +22,9 @@ static int should_swap;
 static char *old_path_prefix_list;
 static char *new_path_prefix_list;
 
-/* keep track of how big the buffers are for when we need to realloc */
-static size_t prefix_list_sz = 1024;
+/* keep track of how big the new_path_prefix_list buffer is for when we need
+ * to realloc */
+static size_t prefix_list_sz;
 
 /*
  * Helper Functions
@@ -48,7 +49,6 @@ static int clfind(char *colonlist, const char *path)
         /* move element to point to next element */
         element = colon + 1;
 
-        /* bump index count */
         index++;
     }
 
@@ -126,7 +126,7 @@ static ssize_t clgetsize_ind(char *colonlist, const unsigned int i)
  *
  * If didn't return NULL, the returned pointer must be freed.
  */
-static char *dynamic_path_swap(const char *path) 
+static char *dynamic_path_swap(const char *path)
 {
     /* quickly return NULL if no swap */
     if (!should_swap) {
@@ -145,14 +145,11 @@ static char *dynamic_path_swap(const char *path)
     if (new == NULL)
         return NULL;
 
-    /* get lengths of old and new prefixes */
     size_t new_element_sz = clgetsize_ptr(new_path_prefix_list, new);
     size_t old_element_sz = clgetsize_ind(old_path_prefix_list, index);
 
-    /* copy new prefix out of new colonlist into our own buffer */
-    char newcpy[new_element_sz + 1];
-    memcpy(newcpy, new, new_element_sz);
-    newcpy[new_element_sz] = '\0';
+    /* temporarily null terminate new element */
+    new[new_element_sz] = '\0';
 
     /* finally, create full path with the new prefix swapped in */
 
@@ -161,9 +158,12 @@ static char *dynamic_path_swap(const char *path)
        variable doesn't end with a slash. in the "worst" case,
        there will be two extra slashes if the new prefix ends with a slash
        and the old one doesn't. plus 1 for NULL */
-    size_t newpathsize = (strlen(path) - old_element_sz) + strlen(newcpy) + 1 + 1;
+    size_t newpathsize = (strlen(path) - old_element_sz) + new_element_sz + 1 + 1;
     char *newpath = malloc(newpathsize);
-    snprintf(newpath, newpathsize, "%s/%s", newcpy, path + old_element_sz);
+    snprintf(newpath, newpathsize, "%s/%s", new, path + old_element_sz);
+
+    /* repair the colon list */
+    new[new_element_sz] = ':';
 
     return newpath;
 }
@@ -220,9 +220,13 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
            DMTCP_PATH_PREFIX env */
         char *old_env = getenv(ENV_DPP);
         if (old_env) {
-            /* if so, alloc buffers and save those paths there */
+
+            prefix_list_sz = strlen(old_env) + 1;
             old_path_prefix_list = malloc(prefix_list_sz);
             new_path_prefix_list = malloc(prefix_list_sz);
+
+            /* TODO check ret */
+
             snprintf(old_path_prefix_list, prefix_list_sz, "%s",
                      old_env);
         }
@@ -240,36 +244,51 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
         int ret = dmtcp_get_restart_env(ENV_DPP, new_path_prefix_list,
                                         prefix_list_sz - 1);
 
-        if (ret == -1) {
-            /* env var did not exist. no new prefix given, so do nothing */
-            break;
-        } else if (ret == -2) {
-            /* need to allocate more memory and retry */
+        /* see below comment for why ret == -1 isn't checked here */
 
-            /* double prefix_list_sz */
-            /* realloc buffers */
-            /* if there was an error, oh well, we can't bubble it up. maybe */
-            /*     jassert */
-            /*
-             * while loop or something. we will only get back a max of 3k
-             * bytes so if we go over, then it can't fail because it will
-             * try to copy as much as we said we could hold, but will end up
-             * stopping earlier because it only has room for 3k so even if we
-             * say we had a 4k buffer, it can only give us 3k, so that's what
-             * it will give us. there won't be an infinite, because as soon
-             * as prefix_list_sz exceeds 3k, it can't fail with -2
-             *
-             * while (ret == -2)
-             *
+        if (ret == -2) {
+            /* it found the env var, but we need to allocate more memory and
+             * retry
              */
+
+            /* loop until dmtcp_get_restart_env works */
+            while (ret == -2) {
+
+                /* double buffer size */
+                prefix_list_sz *= 2;
+                new_path_prefix_list = realloc(new_path_prefix_list,
+                                               prefix_list_sz);
+
+                if (new_path_prefix_list == NULL) {
+                    /* TODO handle error, jassert or something */
+                }
+
+                /* redo stuff at the beginning */
+                memset(new_path_prefix_list, 0, prefix_list_sz);
+
+                ret = dmtcp_get_restart_env(ENV_DPP, new_path_prefix_list,
+                                                prefix_list_sz - 1);
+
+                /* This will not infinite loop because a limitation of
+                 * dmtcp_get_restart_env is that the name=value pair
+                 * can only be a maximum of 2999 bytes long. As soon
+                 * as prefix_list_sz exceeds 3000 bytes, dmtcp_get_restart_env
+                 * cannot fail with -2 (buffer too small) because the buffer we
+                 * provide it will be larger than its maximum output size.
+                 */
+            }
+
         }
 
-        /* check if an initial DMTCP_PATH_PREFIX was even supplied by checking */
-        /* if old_path_prefix_list is NULL */
-        if (old_path_prefix_list)
-            should_swap = 1;
+        /* we should only swap if old_path_prefix_list is not NULL, meaning
+         * DMTCP_PATH_PREFIX was supplied on launch, and new_path_prefix_list
+         * actually contains something, meaning DMTCP_PATH_PREFIX was supplied
+         * on restart. this line will run whether DMTCP_PATH_PREFIX was
+         * given on restart or not (ret == -1), so dynamic_path_swap can
+         * know whether to try to swap or not
+         */
+        should_swap = old_path_prefix_list && *new_path_prefix_list;
 
-        /* if we get here, no old path was given, so do nothing */
         break;
     }
 
