@@ -1,4 +1,4 @@
-PATHVIRT = $(HOME)/dmtcp/test/plugin/pathvirt
+PATHVIRT = /vagrant/dmtcp/dmtcp/test/plugin/pathvirt
 
 pv-test: pv-test.cpp
 	g++ -g -o pv-test $<
