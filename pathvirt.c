@@ -16,15 +16,9 @@
 /* is set on restart */
 static int should_swap;
 
-// TODO when to free?
-/* will point to dynamically allocated buffers to store the user provided */
-/* environment variables in */
-static char *old_path_prefix_list;
-static char *new_path_prefix_list;
-
-/* keep track of how big the new_path_prefix_list buffer is for when we need
- * to realloc */
-static size_t prefix_list_sz;
+// NOTE: DMTCP_PATH_PREFIX env variables cannot exceed 1024 characters in length
+static char old_path_prefix_list[1024];
+static char new_path_prefix_list[1024];
 
 /*
  * Helper Functions
@@ -221,13 +215,8 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
         char *old_env = getenv(ENV_DPP);
         if (old_env) {
 
-            prefix_list_sz = strlen(old_env) + 1;
-            old_path_prefix_list = malloc(prefix_list_sz);
-            new_path_prefix_list = malloc(prefix_list_sz);
-
-            /* TODO check ret */
-
-            snprintf(old_path_prefix_list, prefix_list_sz, "%s",
+            /* if so, save it to buffer */
+            snprintf(old_path_prefix_list, sizeof(old_path_prefix_list), "%s",
                      old_env);
         }
 
@@ -237,12 +226,12 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
     {
         /* necessary since we don't know how many bytes dmtcp_get_restart_env
            will write */
-        memset(new_path_prefix_list, 0, prefix_list_sz);
+        memset(new_path_prefix_list, 0, sizeof(new_path_prefix_list));
 
         /* Try to get the value of ENV_DPP from new environment variables,
          * passed in on restart */
         int ret = dmtcp_get_restart_env(ENV_DPP, new_path_prefix_list,
-                                        prefix_list_sz - 1);
+                                        sizeof(new_path_prefix_list) - 1);
 
         /* see below comment for why ret == -1 isn't checked here */
 
@@ -280,14 +269,14 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
 
         }
 
-        /* we should only swap if old_path_prefix_list is not NULL, meaning
-         * DMTCP_PATH_PREFIX was supplied on launch, and new_path_prefix_list
-         * actually contains something, meaning DMTCP_PATH_PREFIX was supplied
-         * on restart. this line will run whether DMTCP_PATH_PREFIX was
-         * given on restart or not (ret == -1), so dynamic_path_swap can
-         * know whether to try to swap or not
+        /* we should only swap if old_path_prefix_list contians something,
+         * meaning DMTCP_PATH_PREFIX was supplied on launch, and
+         * new_path_prefix_list contains something, meaning DMTCP_PATH_PREFIX
+         * was supplied on restart. this line will run whether
+         * DMTCP_PATH_PREFIX was given on restart or not (ret == -1), so
+         * dynamic_path_swap can know whether to try to swap or not
          */
-        should_swap = old_path_prefix_list && *new_path_prefix_list;
+        should_swap = *old_path_prefix_list && *new_path_prefix_list;
 
         break;
     }
