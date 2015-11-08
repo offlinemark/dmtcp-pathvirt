@@ -236,6 +236,7 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
         /* see below comment for why ret == -1 isn't checked here */
 
         if (ret == -2) {
+#if 0
             /* it found the env var, but we need to allocate more memory and
              * retry
              */
@@ -267,6 +268,7 @@ void dmtcp_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
                  */
             }
 
+#endif
         }
 
         /* we should only swap if old_path_prefix_list contians something,
